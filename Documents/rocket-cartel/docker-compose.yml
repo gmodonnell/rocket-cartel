@@ -1,0 +1,52 @@
+services:
+  postgres_db:
+    image: postgres
+    container_name: gtnh-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=minecraft_whitelist
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_USER=postgres
+    volumes:
+      - gtnh-data:/var/lib/postgresql/data
+    networks:
+      - backend_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  fastapi-app:
+    build: ./backend
+    container_name: whitelist-api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:password123@gtnh-postgres:5432/minecraft_whitelist
+      FRONTEND_URL: http://localhost:8080
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - backend_network
+
+  frontend:
+    build: ./frontend
+    container_name: whitelist-frontend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - fastapi-app
+    networks:
+      - backend_network
+
+networks:
+  backend_network:
+    driver: bridge
+
+volumes:
+  gtnh-data:
